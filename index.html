@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="/style.css" />
+<link rel="stylesheet" href="/style-reportes.css" />
 </head>
 <body>
 
@@ -24,6 +25,7 @@
       <span id="texto-ultima-vez">—</span>
     </div>
   </div>
+  <span class="chip-estado-sistema" id="chip-estado-sistema">—</span>
 </header>
 
 <main class="panel-principal">
@@ -80,6 +82,45 @@
       <li data-sensor="2"><span class="chip-sensor">S2</span><span class="valor-sensor">—</span></li>
       <li data-sensor="1"><span class="chip-sensor">S1</span><span class="valor-sensor">—</span></li>
     </ul>
+  </section>
+
+  <section class="tarjeta tarjeta--metricas" aria-label="Metricas hidrologicas">
+    <div class="tarjeta__titulo">
+      <h2>Métricas hidrológicas</h2>
+      <span class="tarjeta__sub">último reporte recibido por LoRa</span>
+    </div>
+    <div class="grilla-metricas">
+      <div class="metrica-hidro"><span class="metrica-hidro__label">Capacidad</span><span class="metrica-hidro__valor" id="m-capacidad">—</span></div>
+      <div class="metrica-hidro"><span class="metrica-hidro__label">Cota</span><span class="metrica-hidro__valor" id="m-cota">—</span></div>
+      <div class="metrica-hidro"><span class="metrica-hidro__label">Q máx</span><span class="metrica-hidro__valor" id="m-qmax">—</span></div>
+      <div class="metrica-hidro"><span class="metrica-hidro__label">Q mín</span><span class="metrica-hidro__valor" id="m-qmin">—</span></div>
+      <div class="metrica-hidro"><span class="metrica-hidro__label">Q prom</span><span class="metrica-hidro__valor" id="m-qprom">—</span></div>
+      <div class="metrica-hidro"><span class="metrica-hidro__label">dQ/dt</span><span class="metrica-hidro__valor" id="m-dqdt">—</span></div>
+      <div class="metrica-hidro"><span class="metrica-hidro__label">Potencia</span><span class="metrica-hidro__valor" id="m-potencia">—</span></div>
+      <div class="metrica-hidro"><span class="metrica-hidro__label">Tiempo de llenado</span><span class="metrica-hidro__valor" id="m-tiempo-llenado">—</span></div>
+    </div>
+  </section>
+
+  <section class="tarjeta tarjeta--salud" aria-label="Salud de los sensores">
+    <div class="tarjeta__titulo">
+      <h2>Salud de sensores</h2>
+      <span class="tarjeta__sub">detectada por rango de señal y estancamiento</span>
+    </div>
+    <div class="grilla-salud" id="grilla-salud">
+      <div class="badge-salud" data-sensor-salud="1"><span class="badge-salud__id">S1</span><span class="badge-salud__estado">—</span></div>
+      <div class="badge-salud" data-sensor-salud="2"><span class="badge-salud__id">S2</span><span class="badge-salud__estado">—</span></div>
+      <div class="badge-salud" data-sensor-salud="3"><span class="badge-salud__id">S3</span><span class="badge-salud__estado">—</span></div>
+    </div>
+  </section>
+
+  <section class="tarjeta tarjeta--barras" aria-label="Historial de capacidad">
+    <div class="tarjeta__titulo">
+      <h2>Historial de capacidad</h2>
+      <span class="tarjeta__sub">% de llenado en cada reporte recibido</span>
+    </div>
+    <div class="grafico-contenedor">
+      <canvas id="grafico-barras-capacidad"></canvas>
+    </div>
   </section>
 
   <section class="tarjeta tarjeta--grafico" aria-label="Caudal en el tiempo">
@@ -140,5 +181,6 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 <script src="/dashboard.js"></script>
+<script src="/dashboard-reportes.js"></script>
 </body>
 </html>
