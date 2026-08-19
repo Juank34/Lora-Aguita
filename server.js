@@ -4,7 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
-const { pool, ensureSchema, NUM_SENSORES, NOMBRES_ESTADO_SISTEMA, NOMBRES_SALUD_SENSOR } = require('./db');
+const { pool, ensureSchema, NUM_SENSORES } = require('./db');
 
 const app = express();
 const server = http.createServer(app);
@@ -36,42 +36,9 @@ function parsearValor(valor) {
     .filter((e) => Number.isFinite(e.sensorId) && Number.isFinite(e.volumenL));
 }
 
-/**
- * El PSoC manda un segundo tipo de paquete, el reporte hidrologico
- * periodico, con este formato (12 campos separados por coma):
- *
- *   "R:pct,cota,qmax,qmin,qprom,dQdt,potencia,tLlenado,estado,H1,H2,H3"
- *
- * Devuelve null si "valor" no es un paquete de este tipo (o esta mal
- * formado), para que quien llama sepa que tiene que probar el otro
- * parser (parsearValor, para los paquetes "Sn:...").
- */
-function parsearReporte(valor) {
-  if (!valor || typeof valor !== 'string' || !valor.startsWith('R:')) return null;
-
-  const partes = valor.slice(2).split(',').map(Number);
-  if (partes.length !== 12 || partes.some((n) => !Number.isFinite(n))) return null;
-
-  const [pct, cota, qmax, qmin, qprom, dqdt, potencia, tiempoLlenado, estado, h1, h2, h3] = partes;
-
-  return {
-    capacidadPct: pct,
-    cotaM: cota,
-    caudalMaxLmin: qmax,
-    caudalMinLmin: qmin,
-    caudalPromLmin: qprom,
-    dqdtLminS: dqdt,
-    potenciaW: potencia,
-    tiempoLlenadoMin: tiempoLlenado,
-    estado,
-    salud: [h1, h2, h3],
-  };
-}
-
-
 async function obtenerEstadoActual() {
   const { rows } = await pool.query(
-    `SELECT sensor_id, activo, ultimo_caudal_lmin, ultimo_volumen_l, actualizado_en, salud, salud_actualizada_en
+    `SELECT sensor_id, activo, ultimo_caudal_lmin, ultimo_volumen_l, actualizado_en
      FROM estado_sensor ORDER BY sensor_id ASC;`
   );
   const activos = rows.filter((r) => r.activo).length;
@@ -96,40 +63,6 @@ app.post('/api/data', async (req, res) => {
     );
     const lectura = rows[0];
 
-    // ---- Caso 1: es un reporte hidrologico ("R:...") ----
-    const reporte = parsearReporte(valor);
-    if (reporte) {
-      const { rows: repRows } = await pool.query(
-        `INSERT INTO reportes_hidrologicos
-           (lectura_id, capacidad_pct, cota_m, caudal_max_lmin, caudal_min_lmin, caudal_prom_lmin,
-            dqdt_lmin_s, potencia_w, tiempo_llenado_min, estado, salud_s1, salud_s2, salud_s3)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
-         RETURNING *;`,
-        [
-          lectura.id, reporte.capacidadPct, reporte.cotaM, reporte.caudalMaxLmin, reporte.caudalMinLmin,
-          reporte.caudalPromLmin, reporte.dqdtLminS, reporte.potenciaW, reporte.tiempoLlenadoMin,
-          reporte.estado, reporte.salud[0], reporte.salud[1], reporte.salud[2],
-        ]
-      );
-      const reporteGuardado = repRows[0];
-
-      // La salud de cada sensor se actualiza aca; "activo" sigue viniendo
-      // solo de los paquetes "Sn:..." (son cosas independientes: un sensor
-      // puede estar activo/inactivo Y sano/en falla a la vez).
-      for (let i = 0; i < NUM_SENSORES; i++) {
-        await pool.query(
-          `UPDATE estado_sensor SET salud = $2, salud_actualizada_en = now() WHERE sensor_id = $1;`,
-          [i + 1, reporte.salud[i]]
-        );
-      }
-
-      const estado = await obtenerEstadoActual();
-      io.emit('nuevo-reporte', { lectura, reporte: reporteGuardado, estado });
-
-      return res.status(201).json({ ok: true, lectura, reporte: reporteGuardado });
-    }
-
-    // ---- Caso 2: son eventos de sensor ("Sn:...") ----
     const eventos = parsearValor(valor);
 
     for (const ev of eventos) {
@@ -199,29 +132,6 @@ app.get('/api/estado', async (req, res) => {
     console.error('Error en GET /api/estado:', err);
     res.status(500).json({ error: 'Error interno al leer el estado.' });
   }
-});
-
-// --- Historial de reportes hidrologicos ("R:...") ---
-app.get('/api/reportes', async (req, res) => {
-  try {
-    const limit = Math.min(parseInt(req.query.limit, 10) || 60, 300);
-    const { rows } = await pool.query(
-      `SELECT * FROM reportes_hidrologicos ORDER BY creado_en DESC LIMIT $1;`,
-      [limit]
-    );
-    res.json(rows.reverse());
-  } catch (err) {
-    console.error('Error en GET /api/reportes:', err);
-    res.status(500).json({ error: 'Error interno al leer los reportes.' });
-  }
-});
-
-// --- Constantes para que el frontend traduzca codigos a nombres ---
-app.get('/api/constantes', (req, res) => {
-  res.json({
-    nombresEstadoSistema: NOMBRES_ESTADO_SISTEMA,
-    nombresSaludSensor: NOMBRES_SALUD_SENSOR,
-  });
 });
 
 const PORT = process.env.PORT || 3000;
